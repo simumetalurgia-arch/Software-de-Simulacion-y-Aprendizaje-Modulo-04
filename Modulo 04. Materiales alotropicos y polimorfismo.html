@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimuMetalurgia © | Software de Simulación y Aprendizaje: Módulo 04. Transformaciones Alotrópicas Avanzadas</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        :root {
+            --primary: #001f3f; 
+            --secondary: #0f172a; 
+            --accent: #d32f2f; 
+            --bg: #f4f6f8; 
+            --surface: #ffffff; 
+            --text: #1e293b; 
+            --border: #e2e8f0;
+            --light-blue: #e0f2fe;
+            --text-blue: #0369a1;
+        }
+
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background-color: var(--bg); color: var(--text); display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
+
+        /* NAVEGACIÓN PRINCIPAL (INTACTA) */
+        nav { background: var(--primary); padding: 15px 20px; position: sticky; top: 0; z-index: 1000; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        nav button { background: transparent; border: none; color: #94a3b8; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: 800; transition: 0.3s; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; }
+        nav button:hover, nav button.active-nav { color: white; background: rgba(255,255,255,0.1); }
+
+        section { display: none; padding: 40px 20px; max-width: 1400px; margin: 0 auto; width: 100%; flex-grow: 1; animation: fadeIn 0.4s ease-out; }
+        section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* INICIO (INTACTO) */
+        .inicio-container { display: flex; justify-content: center; align-items: center; min-height: 75vh; }
+        .hero-card { background: var(--surface); padding: 70px 80px; border-radius: 12px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.08); max-width: 950px; width: 100%; border-top: 5px solid var(--accent); }
+        .hero-card h1 { font-size: 2.8em; margin-bottom: 5px; color: var(--primary); font-weight: 800; }
+        .hero-card h2 { font-size: 1.4em; color: var(--accent); margin-bottom: 35px; }
+        .hero-card p { font-size: 1.1em; color: #64748b; line-height: 1.8; margin-bottom: 45px; }
+        .btn-group { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .btn-action { color: white; border: none; padding: 14px 28px; border-radius: 6px; font-weight: 800; cursor: pointer; transition: 0.3s; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .btn-action:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
+        .btn-blue { background: var(--primary); } .btn-dark { background: #334155; } .btn-gray { background: #64748b; }
+
+        /* SIMULADOR UI (INTACTO) */
+        .sim-container { display: grid; grid-template-columns: 380px 1fr; gap: 30px; align-items: stretch; }
+        .controls { background: var(--surface); padding: 25px; border-radius: 16px; border: 1px solid var(--border); display: flex; flex-direction: column;}
+        .temp-display { background: var(--secondary); padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
+        .temp-value { font-size: 2.8em; font-weight: 900; font-family: monospace; color: white; }
+        .slider-container { margin: 20px 0; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        input[type=range] { width: 100%; cursor: pointer; height: 8px; border-radius: 4px; }
+        .phase-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin-top: 15px; }
+        .phase-name { font-size: 1.2em; font-weight: 900; color: #166534; }
+        .data-panel { background: #fffbeb; border: 1px solid #fde047; padding: 15px; border-radius: 8px; margin-top: 15px; flex-grow: 1;}
+        .data-row { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 8px; color: #713f12; }
+        .data-val { font-weight: 900; font-family: monospace; font-size: 1.1em; color: var(--primary); }
+        .vis-card { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); display: flex; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        #canvas3d { width: 100%; height: 100%; min-height: 550px; cursor: grab; }
+        
+        /* ======================================================== */
+        /* COMPENDIO TÉCNICO INTERACTIVO (NUEVOS ESTILOS SIN LATEX) */
+        /* ======================================================== */
+        .compendio-container { background: var(--surface); padding: 50px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .compendio-title { text-align: center; color: var(--primary); font-size: 2.4em; font-weight: 800; margin-top: 0; margin-bottom: 40px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .theory-tabs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 40px; }
+        .theory-tab-btn { background: var(--surface); border: 1px solid var(--border); color: var(--primary); padding: 15px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; text-align: left; font-size: 0.95em; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .theory-tab-btn:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+        .theory-tab-btn.active-tab { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 12px rgba(0, 31, 63, 0.3); }
+
+        .theory-pane { display: none; padding: 10px 30px 30px 30px; animation: fadeIn 0.4s ease-out; line-height: 1.9; color: #334155; font-size: 1.05em; text-align: justify; }
+        .theory-pane.active-pane { display: block; }
+        
+        .pane-heading { color: var(--primary); font-size: 1.9em; font-weight: 900; margin-top: 0; margin-bottom: 30px; border-bottom: 4px solid var(--accent); padding-bottom: 10px; display: inline-block; }
+        .sub-heading { color: #0f172a; font-size: 1.4em; margin-top: 40px; margin-bottom: 20px; font-weight: 800; border-left: 4px solid var(--primary); padding-left: 15px;}
+        
+        .math-eq { background: #f8fafc; padding: 15px; border-radius: 8px; text-align: center; font-family: 'Courier New', Courier, monospace; font-size: 1.3em; font-weight: bold; border: 1px solid #cbd5e1; margin: 25px 0; color: var(--primary); letter-spacing: 1px; }
+        .key-term { font-weight: 800; color: var(--primary); background: rgba(0, 31, 63, 0.05); padding: 2px 6px; border-radius: 4px; border-bottom: 2px solid rgba(0, 31, 63, 0.2); }
+
+        /* TABLAS AVANZADAS */
+        .adv-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 40px 0; font-size: 0.95em; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #cbd5e1; }
+        .adv-table th { background: linear-gradient(135deg, var(--primary) 0%, #0a192f 100%); color: white; padding: 18px 20px; text-align: left; text-transform: uppercase; font-size: 0.85em; letter-spacing: 1px; }
+        .adv-table td { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; background: #ffffff; }
+        .adv-table tr:nth-child(even) td { background-color: #f8fafc; }
+        .adv-table tr:last-child td { border-bottom: none; }
+        .adv-table tr:hover td { background-color: #e0f2fe; color: #0369a1; transition: 0.2s; }
+        .adv-table strong { color: var(--primary); }
+
+        /* ======================================================== */
+        /* MEJORA 10000%: ESTILOS DE LOS NUEVOS MINI-SIMULADORES    */
+        /* ======================================================== */
+        .lab-module { display: flex; flex-wrap: wrap; gap: 30px; background: #0f172a; padding: 40px; border-radius: 16px; margin: 45px 0; color: #f8fafc; box-shadow: inset 0 0 50px rgba(0,0,0,0.5); position: relative; overflow: hidden; }
+        .lab-module::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--accent); }
+        .lab-text { flex: 1; min-width: 300px; z-index: 2; }
+        .lab-title { font-size: 0.85em; text-transform: uppercase; color: #38bdf8; font-weight: 900; margin-bottom: 15px; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; }
+        .lab-title::before { content: '◎'; color: var(--accent); font-size: 1.5em; animation: pulseDot 2s infinite; }
+        @keyframes pulseDot { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+        .lab-display { flex: 1.2; min-width: 350px; background: #020617; border: 1px solid #334155; border-radius: 12px; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 280px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 20px; overflow: hidden; }
+
+        /* SIM 1: Gibbs Interactivo (NUEVO) */
+        .gibbs-wrapper { width: 100%; height: 200px; position: relative; }
+        .svg-graph { width: 100%; height: 100%; overflow: visible; }
+        .svg-axis { stroke: #475569; stroke-width: 2; }
+        .svg-grid { stroke: #1e293b; stroke-width: 1; stroke-dasharray: 4; }
+        .svg-curve { fill: none; transition: stroke-width 0.3s, stroke 0.3s; }
+        .svg-curve-alpha { stroke: #38bdf8; }
+        .svg-curve-gamma { stroke: #f43f5e; }
+        .inactive-curve { stroke: #334155 !important; stroke-width: 2 !important; stroke-dasharray: 4; }
+        .active-curve { stroke-width: 4 !important; filter: drop-shadow(0 0 5px currentColor); }
+        .svg-indicator { stroke: #10b981; stroke-width: 2; stroke-dasharray: 4; }
+        .svg-dot { fill: #fde047; r: 6; filter: drop-shadow(0 0 8px #fde047); transition: 0.1s; }
+        .gibbs-controls { width: 100%; margin-top: 20px; display: flex; align-items: center; gap: 15px; }
+        .gibbs-slider { flex: 1; cursor: pointer; accent-color: #10b981; }
+        .gibbs-status { font-family: monospace; font-size: 1.1em; font-weight: bold; color: #38bdf8; min-width: 100px; text-align: right; }
+
+        /* SIM 2: CSS 3D Bain Strain Holográfico (NUEVO) */
+        .bain-scene { width: 200px; height: 200px; perspective: 1200px; display: flex; justify-content: center; align-items: center; }
+        .bain-wrapper { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; animation: bainRotate 15s infinite linear; }
+        .bain-cube { position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; transform-style: preserve-3d; animation: bainMorph 8s infinite cubic-bezier(0.45, 0.05, 0.55, 0.95); }
+        .bain-face { position: absolute; width: 100%; height: 100%; border: 3px solid rgba(56, 189, 248, 0.9); background: rgba(15, 23, 42, 0.4); box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.2); }
+        .bain-front  { transform: translateZ(50px); } .bain-back   { transform: rotateY(180deg) translateZ(50px); }
+        .bain-right  { transform: rotateY(90deg) translateZ(50px); } .bain-left   { transform: rotateY(-90deg) translateZ(50px); }
+        .bain-top    { transform: rotateX(90deg) translateZ(50px); } .bain-bottom { transform: rotateX(-90deg) translateZ(50px); }
+        
+        /* Átomos en los vértices del mini-simulador 3D */
+        .bain-atom { position: absolute; width: 16px; height: 16px; background: #fff; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 15px currentColor; }
+        .atom-1 { top: 0; left: 0; } .atom-2 { top: 0; left: 100%; } .atom-3 { top: 100%; left: 0; } .atom-4 { top: 100%; left: 100%; }
+
+        @keyframes bainRotate { from { transform: rotateX(-20deg) rotateY(0deg); } to { transform: rotateX(-20deg) rotateY(360deg); } }
+        @keyframes bainMorph {
+            0%, 25% { transform: scale3d(1, 1, 1); color: #38bdf8; } /* BCC Base */
+            40%, 65% { transform: scale3d(0.8, 0.8, 0.8); color: #f43f5e; } /* FCC Contraido */
+            80%, 100% { transform: scale3d(1.15, 1.15, 1.35); color: #a855f7; } /* BCT Martensita expandida */
+        }
+        .bain-label { position: absolute; bottom: 10px; width: 100%; text-align: center; font-family: monospace; font-size: 1.1em; font-weight: bold; animation: bainText 8s infinite; }
+        @keyframes bainText { 
+            0%, 25% { content: "ESTADO: BCC (Estable)"; color: #38bdf8; } 
+            40%, 65% { content: "ESTADO: FCC (Contracción)"; color: #f43f5e; } 
+            80%, 100% { content: "ESTADO: BCT (Expansión Severa)"; color: #a855f7; } 
+        }
+
+        /* SIM 3: Dominios Magnéticos Interactivo (NUEVO) */
+        .magnetic-container { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: crosshair; }
+        .magnetic-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 12px; }
+        .spin-needle { width: 4px; height: 30px; background: linear-gradient(to bottom, #ef4444 50%, #ffffff 50%); border-radius: 2px; transition: transform 0.1s, filter 0.3s; transform-origin: center; transform: rotate(0deg); box-shadow: 0 0 5px rgba(255,255,255,0.2); }
+        
+        .magnetic-container:hover .spin-needle {
+            /* Simulación de caos paramagnético por hover */
+            animation: thermalChaos 0.2s infinite linear alternate;
+            filter: drop-shadow(0 0 8px #ef4444);
+        }
+        @keyframes thermalChaos {
+            0% { transform: rotate(calc(var(--r1) * 1deg)); }
+            100% { transform: rotate(calc(var(--r2) * 1deg)); }
+        }
+        .magnetic-alert { margin-top: 25px; color: #94a3b8; font-family: monospace; font-size: 0.9em; text-align: center; border: 1px dashed #475569; padding: 10px; border-radius: 8px; transition: 0.3s; }
+        .magnetic-container:hover .magnetic-alert { color: #f43f5e; border-color: #f43f5e; background: rgba(244, 63, 94, 0.1); content: "¡ALERTA TÉRMICA: 768°C SUPERADOS!"; }
+
+
+        /* MANUAL INTERACTIVO (INTACTO) */
+        .manual-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-top: 30px; }
+        .manual-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 30px; position: relative; overflow: hidden; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        .manual-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(0,0,0,0.08); border-color: var(--accent); }
+        .manual-card h4 { margin-top: 0; font-size: 1.3em; color: var(--primary); border-bottom: 2px solid var(--border); padding-bottom: 10px; transition: 0.3s; }
+        .manual-card:hover h4 { border-color: var(--accent); color: var(--accent); }
+        .manual-card p { font-size: 0.95em; color: #475569; line-height: 1.6; margin-bottom: 0; }
+        .manual-num { position: absolute; right: 15px; top: -5px; font-size: 5em; font-weight: 900; color: rgba(0, 31, 63, 0.04); transition: 0.4s; z-index: 0; }
+        .manual-card:hover .manual-num { color: rgba(211, 47, 47, 0.08); transform: scale(1.1) rotate(5deg); }
+        .manual-content { position: relative; z-index: 1; }
+
+        footer { text-align: center; padding: 30px 20px; border-top: 1px solid var(--border); color: #64748b; font-size: 0.9em; background: #ffffff; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <button id="nav-inicio" onclick="showSection('inicio')" class="active-nav">PRESENTACIÓN</button>
+        <button id="nav-simulador" onclick="showSection('simulador')">SIMULADOR 3D</button>
+        <button id="nav-teoria" onclick="showSection('teoria')">COMPENDIO TÉCNICO</button>
+        <button id="nav-manual" onclick="showSection('manual')">MANUAL INTERACTIVO</button>
+    </nav>
+
+    <section id="inicio" class="active">
+        <div class="inicio-container">
+            <div class="hero-card">
+                <h1>Introducción a la Metalurgia</h1>
+                <h2>Módulo 04: Materiales alotrópicos y polimorfismo</h2>
+                <p>Un metal sólido es en realidad un inmenso universo ordenado. Explore cómo la temperatura redefine la arquitectura atómica de la materia y descubra cómo el reordenamiento cristalográfico dicta las propiedades mecánicas de las aleaciones modernas.</p>
+                <div class="btn-group">
+                    <button class="btn-action btn-blue" onclick="showSection('simulador')">ABRIR VISOR 3D</button>
+                    <button class="btn-action btn-dark" onclick="showSection('teoria')">COMPENDIO TEÓRICO</button>
+                    <button class="btn-action btn-gray" onclick="showSection('manual')">VER MANUAL</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="simulador">
+        <div class="sim-container">
+            <div class="controls">
+                <label style="margin-bottom: 10px; font-weight: bold; display: block;">Seleccionar Metal</label>
+                <select id="metalSelect" onchange="initMetal()" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; font-weight: 700; border: 2px solid var(--border); color: var(--primary); font-size: 1.1em;">
+                    <option value="hierro">Hierro (Fe)</option>
+                    <option value="titanio">Titanio (Ti)</option>
+                    <option value="cobalto">Cobalto (Co)</option>
+                    <option value="circonio">Circonio (Zr)</option>
+                </select>
+
+                <div class="temp-display" id="tempBox">
+                    <div style="font-size: 0.7em; color: #94a3b8; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px;">Termocupla</div>
+                    <div class="temp-value"><span id="tempValue">25</span><span style="font-size: 0.5em; margin-left: 5px; color: #cbd5e1;">°C</span></div>
+                </div>
+
+                <div class="slider-container">
+                    <input type="range" id="tempSlider" min="0" max="2000" step="1" value="25" oninput="handleSlider()">
+                </div>
+
+                <div class="phase-box" id="phaseBox">
+                    <div class="phase-name" id="phaseName">Cargando...</div>
+                    <div class="phase-desc" id="phaseDesc">Inicializando cristal...</div>
+                </div>
+
+                <div class="data-panel">
+                    <div style="font-size: 0.85em; color: #854d0e; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #fef08a;">Parámetros Cristalográficos</div>
+                    <div class="data-row"><span>Estructura de Red:</span> <span class="data-val" id="crystalType">...</span></div>
+                    <div class="data-row"><span>Factor Empaquetamiento:</span> <span class="data-val" id="crystalAPF">...</span></div>
+                    <div class="data-row"><span>Índ. Coordinación:</span> <span class="data-val" id="crystalCoord">...</span></div>
+                    <div class="data-row"><span>Átomos por Celda:</span> <span class="data-val" id="crystalAtoms">...</span></div>
+                    <div style="margin-top: 15px; font-size: 0.9em; font-weight: bold; text-align: center;" id="transMsg">Estable</div>
+                </div>
+            </div>
+
+            <div class="vis-card">
+                <div id="canvas3d" tabindex="0"></div>
+                <div style="position: absolute; bottom: 20px; right: 20px;">
+                    <div id="statusTag" style="background: var(--primary); color: white; padding: 10px 15px; border-radius: 8px; font-size: 0.85em; font-weight: 800; text-transform: uppercase;">
+                        ESTADO SÓLIDO
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="teoria">
+        <div class="compendio-container">
+            <h2 class="compendio-title">Tratado Avanzado de Alotropía y Polimorfismo</h2>
+            
+            <div class="theory-tabs-grid">
+                <button class="theory-tab-btn active-tab" id="tab-btn-1" onclick="showTheoryTab(1)">I. Termodinámica Estructural</button>
+                <button class="theory-tab-btn" id="tab-btn-2" onclick="showTheoryTab(2)">II. Cinética y Tensión Bain</button>
+                <button class="theory-tab-btn" id="tab-btn-3" onclick="showTheoryTab(3)">III. Sistema del Hierro</button>
+                <button class="theory-tab-btn" id="tab-btn-4" onclick="showTheoryTab(4)">IV. Aleaciones No Ferrosas</button>
+            </div>
+
+            <div class="theory-pane active-pane" id="pane-1">
+                <h3 class="pane-heading">I. Bases Termodinámicas de la Recristalización</h3>
+                <p>En el campo de la metalurgia física, la alotropía no se concibe como un simple cambio visual, sino como una imperativa respuesta microscópica gobernada por el <strong>Principio de Mínima Energía Libre</strong>. Un metal elemental, al ser sometido a variaciones isobáricas de temperatura, buscará invariablemente la configuración espacial (BCC, FCC, HCP) que minimice su Energía Libre de Gibbs (G).</p>
+                
+                <div class="math-eq">
+                    ΔG = ΔH - T · ΔS
+                </div>
+
+                <p>La <span class="key-term">Entalpía (H)</span> representa la suma de las energías de los enlaces interatómicos. A bajas temperaturas, la fase termodinámicamente estable será aquella que maximice la densidad de empaquetamiento y minimice la energía de cohesión. No obstante, al elevar la temperatura (T), el incremento en la amplitud de las vibraciones atómicas hace que el término de la <span class="key-term">Entropía (S)</span> comience a dominar la ecuación, forzando a la red a adoptar estructuras más abiertas que permitan mayores grados de libertad.</p>
+
+                <div class="lab-module">
+                    <div class="lab-text">
+                        <div class="lab-title">Laboratorio Interactivo: Cinética de Gibbs</div>
+                        <p style="color: #94a3b8; font-size: 0.9em; line-height: 1.6;">
+                            El panel de la derecha es un simulador funcional. Utiliza el deslizador térmico inferior para inyectar calor al sistema.<br><br>
+                            Observa cómo la esfera de estado sigue siempre la curva que posee la <strong>menor Energía Libre</strong>. Al cruzar el punto de intersección (Temperatura Crítica), el sistema entra en inestabilidad y la fase Alfa colapsa, cediendo el control termodinámico a la fase Gamma.
+                        </p>
+                    </div>
+                    <div class="lab-display">
+                        <div class="gibbs-wrapper">
+                            <svg class="svg-graph" viewBox="0 0 300 200" preserveAspectRatio="none">
+                                <line x1="20" y1="180" x2="290" y2="180" class="svg-axis" />
+                                <line x1="20" y1="180" x2="20" y2="20" class="svg-axis" />
+                                <text x="270" y="195" fill="#94a3b8" font-size="12" font-family="monospace">Temp</text>
+                                <text x="5" y="30" fill="#94a3b8" font-size="12" font-family="monospace">G</text>
+                                
+                                <line x1="150" y1="180" x2="150" y2="20" class="svg-grid" />
+                                <text x="135" y="195" fill="#fde047" font-size="11" font-weight="bold" font-family="monospace">T Crítica</text>
+                                
+                                <path id="curve-alpha" d="M 20 80 Q 150 120 280 170" class="svg-curve svg-curve-alpha active-curve" />
+                                <path id="curve-gamma" d="M 20 160 Q 150 130 280 30" class="svg-curve svg-curve-gamma inactive-curve" />
+                                
+                                <line id="gibbs-line" x1="20" y1="20" x2="20" y2="180" class="svg-indicator" />
+                                <circle id="gibbs-dot" cx="20" cy="80" class="svg-dot" />
+                            </svg>
+                        </div>
+                        <div class="gibbs-controls">
+                            <input type="range" id="gibbs-input" class="gibbs-slider" min="0" max="100" value="0" oninput="updateGibbs(this.value)">
+                            <div class="gibbs-status" id="gibbs-status">FASE ALFA</div>
+                        </div>
+                    </div>
+                </div>
+
+                <p>Es fundamental para el ingeniero comprender que la transformación no es instantánea. Requiere un Subenfriamiento Crítico (ΔT) para vencer la barrera de energía de activación de nucleación. Si una pieza metálica se enfría a velocidades extremas, la difusión atómica se congela antes de cruzar la barrera, atrapando la fase de alta temperatura en un estado metaestable (fundamento del temple).</p>
+            </div>
+
+            <div class="theory-pane" id="pane-2">
+                <h3 class="pane-heading">II. Cristalomorfología y Tensión de Bain</h3>
+                <p>Las arquitecturas dominantes en aleaciones industriales son la Cúbica Centrada en el Cuerpo (BCC), la Cúbica Centrada en las Caras (FCC) y la Hexagonal Compacta (HCP). El Factor de Empaquetamiento Atómico (APF) dicta la eficiencia volumétrica de las esferas rígidas.</p>
+
+                <table class="adv-table">
+                    <thead>
+                        <tr>
+                            <th>Estructura de Red</th>
+                            <th>Factor Empaquetamiento (APF)</th>
+                            <th>Índice Coord.</th>
+                            <th>Sistemas de Deslizamiento</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>BCC</strong> (Ferrita, Titanio Beta)</td>
+                            <td><strong>0.68</strong> (Celda abierta)</td>
+                            <td>8</td>
+                            <td>48 (Alta fluencia en caliente)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>FCC</strong> (Austenita, Aluminio, Cobre)</td>
+                            <td><strong>0.74</strong> (Máxima compacidad)</td>
+                            <td>12</td>
+                            <td>12 (Excelente ductilidad)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>HCP</strong> (Titanio Alfa, Circonio)</td>
+                            <td><strong>0.74</strong> (Máxima compacidad)</td>
+                            <td>12</td>
+                            <td>3 (Alta resistencia, frágil)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 class="sub-heading">La Tensión de Bain y la Martensita</h4>
+                <p>Durante el calentamiento, la red atómica pasa de un APF de 0.68 a 0.74, lo que provoca una drástica contracción volumétrica macroscópica de la pieza, yendo en contra de la dilatación térmica habitual.</p>
+                <p>Si la fase FCC (Austenita) se enfría a velocidades de temple drásticas (ejemplo: 1000°C/s), el carbono intersticial queda atrapado sin tiempo para difundirse. La red colapsa mediante un mecanismo adifusional descrito por la <span class="key-term">Deformación de Bain</span>. La celda se deforma tetragonalmente, estirándose en el eje Z y contrayéndose en X e Y para formar Martensita (BCT), causando distorsiones extremas y una dureza sin precedentes.</p>
+
+                <div class="lab-module" style="flex-direction: row-reverse;">
+                    <div class="lab-text">
+                        <div class="lab-title">Holograma: Paradoja de Bain</div>
+                        <p style="color: #94a3b8; font-size: 0.9em; line-height: 1.6;">
+                            El motor CSS 3D adyacente calcula en tiempo real el estrés cristalográfico de la celda unitaria.<br><br>
+                            <strong>Ciclo de Transformación:</strong><br>
+                            1. Red BCC en equilibrio (Líneas Azules).<br>
+                            2. Transición a FCC mediante contracción de volumen para optimizar el APF (Líneas Rojas).<br>
+                            3. Enfriamiento drástico: los átomos de carbono atrapados estiran la celda forzosamente originando la fase Martensítica BCT (Líneas Púrpuras). Esta anomalía expansiva provoca el agrietamiento de la pieza si no se reviene a tiempo.
+                        </p>
+                    </div>
+                    <div class="lab-display">
+                        <div class="bain-scene">
+                            <div class="bain-wrapper">
+                                <div class="bain-cube">
+                                    <div class="bain-face bain-front">
+                                        <div class="bain-atom atom-1"></div><div class="bain-atom atom-2"></div><div class="bain-atom atom-3"></div><div class="bain-atom atom-4"></div>
+                                    </div>
+                                    <div class="bain-face bain-back"></div>
+                                    <div class="bain-face bain-right"></div>
+                                    <div class="bain-face bain-left"></div>
+                                    <div class="bain-face bain-top"></div>
+                                    <div class="bain-face bain-bottom"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bain-label">INICIANDO HOLOGRAFÍA...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="theory-pane" id="pane-3">
+                <h3 class="pane-heading">III. Profundización en el Sistema Hierro-Carbono</h3>
+                <p>La primacía del acero en la ingeniería civil y mecánica moderna se debe de manera exclusiva a la alotropía del hierro elemental, el cual presenta dos transformaciones estructurales críticas.</p>
+
+                <table class="adv-table">
+                    <thead>
+                        <tr>
+                            <th>Fase Sólida</th>
+                            <th>Rango de Estabilidad Térmica</th>
+                            <th>Densidad Real</th>
+                            <th>Capacidad Intersticial de Carbono</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Hierro Delta</strong></td>
+                            <td>1394°C a 1538°C (Fusión)</td>
+                            <td>7.40 g/cm³</td>
+                            <td>Muy alta vibración, fase transitoria.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Hierro Gamma (Austenita)</strong></td>
+                            <td>912°C a 1394°C</td>
+                            <td>7.63 g/cm³</td>
+                            <td>Alberga hasta <strong>2.11% C</strong> (Huecos de 0.41R)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Hierro Alfa (Ferrita)</strong></td>
+                            <td>Ambiente a 912°C</td>
+                            <td>7.87 g/cm³</td>
+                            <td>Alberga máximo <strong>0.022% C</strong> (Huecos de 0.29R)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p>Los intersticios octaédricos en la Austenita (FCC) son considerablemente más amplios que en la Ferrita (BCC asimétrica). Por ello, la Austenita puede disolver 100 veces más Carbono en solución sólida, dando origen a microestructuras de dos fases como la Perlita al enfriarse.</p>
+
+                <div class="lab-module" style="background: linear-gradient(to right, #0f172a, #1e1b4b);">
+                    <div class="lab-text">
+                        <div class="lab-title" style="color: #fde047;">Laboratorio de Magnetismo: Punto de Curie (A2)</div>
+                        <p style="color: #cbd5e1; font-size: 0.9em; line-height: 1.6;">
+                            Exactamente a los <strong>768°C</strong>, el Hierro experimenta una transición fundamental. <strong>No hay cambio alotrópico</strong> (la red sigue siendo rígidamente BCC), pero la energía térmica sobrepasa la energía de alineación cuántica de los espines.<br><br>
+                            <strong>INTERACCIÓN:</strong> Pasa el puntero del ratón sobre la placa magnética. Al hacerlo, inyectarás calor superando los 768°C, destruyendo el ferromagnetismo ordenado y provocando un caos paramagnético inmediato.
+                        </p>
+                    </div>
+                    <div class="lab-display" style="border-color: #4338ca; justify-content: space-between;">
+                        <div class="magnetic-container" onmouseover="triggerCurie(true)" onmouseout="triggerCurie(false)">
+                            <div class="magnetic-grid" id="mag-grid">
+                                </div>
+                            <div class="magnetic-alert" id="mag-alert">ESTADO: FERROMAGNÉTICO (25°C) <br> Pasa el ratón para aplicar calor.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="theory-pane" id="pane-4">
+                <h3 class="pane-heading">IV. Alotropía de Alto Rendimiento: Metales No Ferrosos</h3>
+                <p>Las exigencias extremas de la industria aeroespacial y de fisión nuclear operan en márgenes donde el acero falla. Aquí, la alotropía de metales refractarios toma el protagonismo.</p>
+
+                <h4 class="sub-heading">El Sistema del Titanio (Ti)</h4>
+                <p>El titanio elemental cristaliza a temperatura ambiente como Fase Alfa (HCP), confiriendo una resistencia mecánica brutal. A los 882°C, sufre una transformación alotrópica masiva hacia Fase Beta (BCC). Esta nueva estructura abierta dota al titanio de una maleabilidad en caliente excepcional para forjar álabes de turbinas aeronáuticas.</p>
+
+                <table class="adv-table">
+                    <thead>
+                        <tr>
+                            <th>Metal Elemental</th>
+                            <th>Fase Ambiente (Baja Temp.)</th>
+                            <th>Temp. Transición</th>
+                            <th>Fase Alta Temperatura</th>
+                            <th>Aplicación Crítica</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Circonio (Zr)</strong></td>
+                            <td>Fase Alfa (HCP)</td>
+                            <td>863°C</td>
+                            <td>Fase Beta (BCC)</td>
+                            <td>Vainas de combustible nuclear. Control vital de expansión.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cobalto (Co)</strong></td>
+                            <td>Fase Epsilon (HCP)</td>
+                            <td>417°C</td>
+                            <td>Fase Alfa (FCC)</td>
+                            <td>Superaleaciones biomédicas y de altísimo desgaste.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Estaño (Sn)</strong></td>
+                            <td>Sn Gris (Estructura Diamante)</td>
+                            <td>13.2°C</td>
+                            <td>Sn Blanco (Tetragonal)</td>
+                            <td>"Peste del Estaño": expansión destructiva en climas bajo cero.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+        </div>
+    </section>
+
+    <section id="manual">
+        <div class="compendio-container" style="background: transparent; box-shadow: none; border: none; padding: 20px 0;">
+            <h2 class="compendio-title" style="text-align: left;">Guía de Operación del Entorno 3D</h2>
+            <p style="color: #64748b; font-size: 1.1em;">El simulador renderiza en tiempo real las mallas atómicas mediante aceleración WebGL. Seleccione una tarjeta para comprender la física aplicada al motor gráfico:</p>
+            
+            <div class="manual-grid">
+                <div class="manual-card">
+                    <div class="manual-num">1</div>
+                    <div class="manual-content">
+                        <h4>Morfología Estricta</h4>
+                        <p>El algoritmo genera celdas unitarias completas. La geometría representa un cristal metálico puro en perfecto equilibrio térmico.</p>
+                    </div>
+                </div>
+
+                <div class="manual-card">
+                    <div class="manual-num">2</div>
+                    <div class="manual-content">
+                        <h4>Energía Fonónica</h4>
+                        <p>Al manipular la termocupla, usted inyecta calor simulado. Observe cómo los átomos oscilan en los ejes espaciales, emulando la entropía vibracional real.</p>
+                    </div>
+                </div>
+
+                <div class="manual-card">
+                    <div class="manual-num">3</div>
+                    <div class="manual-content">
+                        <h4>Sistema "Átomo Fantasma"</h4>
+                        <p>Al transitar de BCC a FCC, átomos extra se escalan dinámicamente desde el vacío para satisfacer el Índice de Coordinación 12 de la nueva fase compacta.</p>
+                    </div>
+                </div>
+
+                <div class="manual-card">
+                    <div class="manual-num">4</div>
+                    <div class="manual-content">
+                        <h4>Colapso de Malla (Fusión)</h4>
+                        <p>Al sobrepasar la entalpía de enlace (Temperatura de Fusión), el simulador desvanece las uniones rígidas interatómicas, simulando la transición al fluido amorfo.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+   
+     <footer>SimuMetalurgia © 2026 <br><br> 
+Desarrollo: <strong> Andrés Felipe Caro Miranda & José Gabriel Franco Correa</strong>  |  Asesoría: <strong> Prof. Ana Emilse Coy Echeverria   &   Prof. Carlos Andrés Galán Pinilla.</strong> <br><br> Universidad Industrial de Santander | UIS. </footer> 
+
+
+    <script>
+        // NAVEGACIÓN
+        function showSection(id) {
+            document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active-nav'));
+            const target = document.getElementById(id);
+            if(target) target.classList.add('active');
+            if(document.getElementById('nav-' + id)) document.getElementById('nav-' + id).classList.add('active-nav');
+            window.scrollTo({top: 0, behavior: 'smooth'});
+            if(id === 'simulador' && !scene) setTimeout(init3D, 100);
+        }
+
+        function showTheoryTab(index) {
+            document.querySelectorAll('.theory-tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+            document.querySelectorAll('.theory-pane').forEach(pane => pane.classList.remove('active-pane'));
+            document.getElementById('tab-btn-' + index).classList.add('active-tab');
+            document.getElementById('pane-' + index).classList.add('active-pane');
+        }
+
+        /* ========================================================== */
+        /* MOTOR DE MINI-SIMULADORES DE TEORÍA (JS AISLADO)           */
+        /* ========================================================== */
+        
+        // Mini-Sim 1: Gibbs (Calculador Interactivo)
+        function updateGibbs(val) {
+            // El slider va de 0 a 100. Punto de cruce aprox en val = 50
+            const percent = val / 100;
+            const xPos = 20 + (260 * percent); // X va de 20 a 280
+            
+            // Aproximación cuadrática simple de las curvas SVG para trazar el punto
+            const yAlpha = 80 + Math.pow(percent * 2, 2) * 22; 
+            const yGamma = 160 - Math.pow(percent * 1.5, 2) * 45; 
+            
+            const line = document.getElementById('gibbs-line');
+            const dot = document.getElementById('gibbs-dot');
+            const status = document.getElementById('gibbs-status');
+            const cAlpha = document.getElementById('curve-alpha');
+            const cGamma = document.getElementById('curve-gamma');
+
+            line.setAttribute('x1', xPos);
+            line.setAttribute('x2', xPos);
+            dot.setAttribute('cx', xPos);
+
+            if (percent < 0.5) {
+                // Dominio de Fase Alfa
+                dot.setAttribute('cy', yAlpha);
+                dot.style.fill = "#38bdf8"; // Azul
+                status.innerText = "FASE ALFA";
+                status.style.color = "#38bdf8";
+                cAlpha.classList.add('active-curve'); cAlpha.classList.remove('inactive-curve');
+                cGamma.classList.add('inactive-curve'); cGamma.classList.remove('active-curve');
+            } else {
+                // Dominio de Fase Gamma
+                dot.setAttribute('cy', yGamma);
+                dot.style.fill = "#f43f5e"; // Rojo
+                status.innerText = "FASE GAMMA";
+                status.style.color = "#f43f5e";
+                cGamma.classList.add('active-curve'); cGamma.classList.remove('inactive-curve');
+                cAlpha.classList.add('inactive-curve'); cAlpha.classList.remove('active-curve');
+            }
+        }
+
+        // Mini-Sim 3: Efecto Curie (Inyección de agujas magnéticas)
+        document.addEventListener("DOMContentLoaded", () => {
+            const magGrid = document.getElementById('mag-grid');
+            if(magGrid) {
+                for(let i=0; i<32; i++) {
+                    let needle = document.createElement('div');
+                    needle.className = 'spin-needle';
+                    // Generar variables CSS aleatorias para la vibración térmica
+                    needle.style.setProperty('--r1', Math.random() * 360);
+                    needle.style.setProperty('--r2', Math.random() * 360);
+                    magGrid.appendChild(needle);
+                }
+            }
+        });
+
+        function triggerCurie(isHot) {
+            const alertBox = document.getElementById('mag-alert');
+            if(isHot) {
+                alertBox.innerHTML = "¡ALERTA TÉRMICA: 768°C SUPERADOS!<br>Caos Paramagnético Activo.";
+            } else {
+                alertBox.innerHTML = "ESTADO: FERROMAGNÉTICO (25°C)<br>Pasa el ratón para aplicar calor.";
+            }
+        }
+
+        /* ========================================================== */
+        /* LÓGICA DEL SIMULADOR THREE.JS PRINCIPAL (TOTALMENTE INTACTA) */
+        /* ========================================================== */
+        const METALS = {
+            hierro: { melt: 1538, phases: [
+                { tMax: 912, name: "Ferrita (Alfa)", type: "BCC", atomsPerCell: 2, desc: "Cubo 4x4x4 celdas. Expansión máxima del volumen." },
+                { tMax: 1394, name: "Austenita (Gamma)", type: "FCC", atomsPerCell: 4, desc: "Cubo 3x3x3 celdas. Alta compacidad volumétrica." },
+                { tMax: 1538, name: "Ferrita (Delta)", type: "BCC", atomsPerCell: 2, desc: "Cubo 4x4x4 celdas. Retorno de red por inestabilidad entrópica." }
+            ]},
+            titanio: { melt: 1668, phases: [
+                { tMax: 882, name: "Alfa (HCP)", type: "HCP", atomsPerCell: 6, desc: "Bloque rectangular. Estabilidad termodinámica ambiente." },
+                { tMax: 1668, name: "Beta (BCC)", type: "BCC", atomsPerCell: 2, desc: "Cubo 4x4x4 celdas. Modificación a red isotrópica." }
+            ]},
+            cobalto: { melt: 1495, phases: [
+                { tMax: 417, name: "Alfa (HCP)", type: "HCP", atomsPerCell: 6, desc: "Bloque HC estable a bajas temperaturas." },
+                { tMax: 1495, name: "Beta (FCC)", type: "FCC", atomsPerCell: 4, desc: "Cubo 3x3x3 celdas. Aumento de ductilidad térmica." }
+            ]},
+            circonio: { melt: 1855, phases: [
+                { tMax: 863, name: "Alfa (HCP)", type: "HCP", atomsPerCell: 6, desc: "Bloque rectangular HC compacto." },
+                { tMax: 1855, name: "Beta (BCC)", type: "BCC", atomsPerCell: 2, desc: "Cubo 4x4x4 celdas. Transición de alta temperatura." }
+            ]}
+        };
+
+        let scene, camera, renderer, controls, atomMesh, linesMesh;
+        let ATOMS_COUNT = 0;
+        let realCounts = []; 
+        let phasePaths = [], phaseScales = [], phaseCutoffs = [];
+        let vibPhaseX = [], vibPhaseY = [], vibPhaseZ = [];
+        let currentMetal = 'hierro';
+
+        function init3D() {
+            if(scene) return;
+            const container = document.getElementById('canvas3d');
+            scene = new THREE.Scene(); scene.background = new THREE.Color('#bae6fd');
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 1000);
+            camera.position.set(20, 15, 25);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            const amb = new THREE.AmbientLight(0xffffff, 0.8); scene.add(amb);
+            const dir = new THREE.DirectionalLight(0xffffff, 0.6); dir.position.set(10, 20, 10); scene.add(dir);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            const atomGeo = new THREE.SphereGeometry(0.35, 12, 12);
+            const atomMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.7, roughness: 0.2 });
+            atomMesh = new THREE.InstancedMesh(atomGeo, atomMat, 1000);
+            atomMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            scene.add(atomMesh);
+
+            const lineGeo = new THREE.BufferGeometry();
+            lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(30000), 3));
+            linesMesh = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ color: 0xff8c00, transparent: true, opacity: 0.6 }));
+            scene.add(linesMesh);
+
+            window.addEventListener('resize', () => {
+                if(!renderer) return;
+                const canvasBox = document.getElementById('canvas3d');
+                camera.aspect = canvasBox.clientWidth / canvasBox.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(canvasBox.clientWidth, canvasBox.clientHeight);
+            });
+
+            initMetal();
+            animate();
+        }
+
+        function createPerfectLattice(type) {
+            let pts = []; let R_val = 1.0; let a, c;
+            if (type === 'BCC') {
+                a = (4 * R_val) / Math.sqrt(3); let L = 4; 
+                for(let i=0; i<=L; i++) for(let j=0; j<=L; j++) for(let k=0; k<=L; k++) {
+                    pts.push(new THREE.Vector3(i*a, j*a, k*a));
+                    if(i<L && j<L && k<L) pts.push(new THREE.Vector3((i+0.5)*a, (j+0.5)*a, (k+0.5)*a));
+                }
+            } else if (type === 'FCC') {
+                a = (4 * R_val) / Math.sqrt(2); let L = 3; 
+                for(let i=0; i<=L; i++) for(let j=0; j<=L; j++) for(let k=0; k<=L; k++) {
+                    pts.push(new THREE.Vector3(i*a, j*a, k*a));
+                    if(i<L && j<L) pts.push(new THREE.Vector3((i+0.5)*a, (j+0.5)*a, k*a));
+                    if(i<L && k<L) pts.push(new THREE.Vector3((i+0.5)*a, j*a, (k+0.5)*a));
+                    if(j<L && k<L) pts.push(new THREE.Vector3(i*a, (j+0.5)*a, (k+0.5)*a));
+                }
+            } else if (type === 'HCP') {
+                a = 2.0 * R_val; c = a * 1.633; let nx=4, ny=5, nz=3; 
+                for(let i=0; i<=nx; i++) for(let j=0; j<=ny; j++) for(let k=0; k<=nz; k++) {
+                    let x = i*a + (j%2)*a/2; let y = j*a*Math.sqrt(3)/2; let z = k*c;
+                    pts.push(new THREE.Vector3(x, y, z));
+                    if(i<nx && j<ny && k<nz) pts.push(new THREE.Vector3(x + a/2, y + a*Math.sqrt(3)/6, z + c/2));
+                }
+            }
+            let unique = []; pts.forEach(p => { if(!unique.some(u => u.distanceToSquared(p) < 0.01)) unique.push(p); });
+            let bbox = new THREE.Box3().setFromPoints(unique); let center = new THREE.Vector3(); bbox.getCenter(center);
+            unique.forEach(p => p.sub(center)); unique.sort((a,b) => a.lengthSq() - b.lengthSq());
+            return unique;
+        }
+
+        function getCutoff(type) {
+            if(type === 'BCC') return Math.pow(2.4, 2);
+            if(type === 'FCC') return Math.pow(2.9, 2);
+            return Math.pow(2.3, 2);
+        }
+
+        function initMetal() {
+            currentMetal = document.getElementById('metalSelect').value;
+            let def = METALS[currentMetal];
+            let rawLattices = []; ATOMS_COUNT = 0; realCounts = [];
+            def.phases.forEach(ph => {
+                let pts = createPerfectLattice(ph.type); rawLattices.push(pts); realCounts.push(pts.length);
+                if(pts.length > ATOMS_COUNT) ATOMS_COUNT = pts.length;
+            });
+            atomMesh.count = ATOMS_COUNT;
+            phasePaths = []; phaseScales = []; phaseCutoffs = [];
+            let basePath = [], baseScale = [];
+            for(let i=0; i<ATOMS_COUNT; i++) {
+                if (i < rawLattices[0].length) { basePath.push(rawLattices[0][i].clone()); baseScale.push(1.0); }
+                else { basePath.push(new THREE.Vector3(0,0,0)); baseScale.push(0.0); }
+            }
+            phasePaths.push(basePath); phaseScales.push(baseScale); phaseCutoffs.push(getCutoff(def.phases[0].type));
+
+            for(let p=1; p<def.phases.length; p++) {
+                let sourcePath = phasePaths[p-1], sourceScale = phaseScales[p-1];
+                let targetRaw = rawLattices[p]; let availableIndices = Array.from({length: targetRaw.length}, (_, i) => i);
+                let path = new Array(ATOMS_COUNT); let scale = new Array(ATOMS_COUNT).fill(0.0);
+                
+                for(let i=0; i<ATOMS_COUNT; i++) {
+                    let sP = sourcePath[i];
+                    if (availableIndices.length > 0) {
+                        let bestJ = 0, minDist = Infinity;
+                        for(let j=0; j<availableIndices.length; j++) {
+                            let d = sP.distanceToSquared(targetRaw[availableIndices[j]]);
+                            if (d < minDist) { minDist = d; bestJ = j; }
+                        }
+                        let tIdx = availableIndices.splice(bestJ, 1)[0];
+                        path[i] = targetRaw[tIdx].clone(); scale[i] = 1.0;
+                    } else { path[i] = new THREE.Vector3(0,0,0); scale[i] = 0.0; }
+                }
+                phasePaths.push(path); phaseScales.push(scale); phaseCutoffs.push(getCutoff(def.phases[p].type));
+            }
+            vibPhaseX = []; vibPhaseY = []; vibPhaseZ = [];
+            for(let i=0; i<ATOMS_COUNT; i++) { vibPhaseX.push(Math.random()*6.28); vibPhaseY.push(Math.random()*6.28); vibPhaseZ.push(Math.random()*6.28); }
+            handleSlider();
+        }
+
+        function handleSlider() { document.getElementById('tempValue').innerText = document.getElementById('tempSlider').value; }
+
+        function getState(temp) {
+            let def = METALS[currentMetal]; let window = 60;
+            if(temp >= def.melt) return { isMelt: true };
+            for(let i=0; i<def.phases.length; i++) {
+                let tCritical = (i === def.phases.length - 1) ? def.melt : def.phases[i].tMax;
+                if(temp < tCritical - window) return { pA: i, pB: i, prog: 0 };
+                if(temp < tCritical) return { pA: i, pB: (i + 1 < def.phases.length) ? i + 1 : i, prog: (temp - (tCritical - window)) / window };
+            }
+            return { pA: 0, pB: 0, prog: 0 };
+        }
+
+        const dummy = new THREE.Object3D();
+        
+        function animate() {
+            requestAnimationFrame(animate); if(!scene || ATOMS_COUNT === 0) return; controls.update();
+
+            let temp = parseInt(document.getElementById('tempSlider').value);
+            let state = getState(temp); let time = Date.now() * 0.005;
+            let def = METALS[currentMetal];
+            let activePhaseIdx = state.prog > 0.5 ? state.pB : state.pA;
+            let activePhase = def.phases[activePhaseIdx];
+            
+            document.getElementById('phaseName').innerText = state.isMelt ? "Fase Líquida" : activePhase.name;
+            document.getElementById('phaseDesc').innerText = state.isMelt ? "Colapso Estructural Termodinámico." : activePhase.desc;
+            
+            if (state.isMelt) {
+                document.getElementById('crystalType').innerText = "Estado Amorfo"; document.getElementById('crystalAPF').innerText = "Variable (Fluido)"; document.getElementById('crystalCoord').innerText = "Perdida de Orden"; document.getElementById('crystalAtoms').innerText = "N/A";
+            } else {
+                document.getElementById('crystalType').innerText = activePhase.type;
+                if (activePhase.type === 'BCC') { document.getElementById('crystalAPF').innerText = "0.68 (68%)"; document.getElementById('crystalCoord').innerText = "8 Vecinos"; }
+                else if (activePhase.type === 'FCC' || activePhase.type === 'HCP') { document.getElementById('crystalAPF').innerText = "0.74 (74%)"; document.getElementById('crystalCoord').innerText = "12 Vecinos"; }
+                document.getElementById('crystalAtoms').innerText = activePhase.atomsPerCell;
+            }
+
+            let transMsg = document.getElementById('transMsg');
+            if (state.isMelt) { transMsg.innerText = "FUSIÓN ALCANZADA"; transMsg.style.color = '#9f1239'; document.getElementById('statusTag').innerText = "ALERTA: FUSIÓN"; document.getElementById('statusTag').style.backgroundColor = '#dc2626'; }
+            else if (state.prog > 0 && state.pA !== state.pB) { transMsg.innerText = `CINÉTICA DE RECRISTALIZACIÓN (${Math.round(state.prog*100)}%)`; transMsg.style.color = '#b45309'; document.getElementById('statusTag').innerText = "ESTADO SÓLIDO"; document.getElementById('statusTag').style.backgroundColor = 'var(--primary)'; }
+            else { transMsg.innerText = "ESTRUCTURA TERMODINÁMICA ESTABLE"; transMsg.style.color = '#15803d'; document.getElementById('statusTag').innerText = "ESTADO SÓLIDO"; document.getElementById('statusTag').style.backgroundColor = 'var(--primary)'; }
+
+            let posArr = linesMesh.geometry.attributes.position.array; let lIdx = 0;
+            let currentCutoff = phaseCutoffs[state.pA] + (phaseCutoffs[state.pB] - phaseCutoffs[state.pA]) * state.prog;
+            let currentPositions = []; let currentScales = [];
+            let baseVib = 0.02 + (temp * 0.00003); let isMeltingSoon = Math.min(1.0, Math.max(0, temp - (def.melt - 100)) / 100); 
+            let extremeVib = (baseVib + (Math.pow(isMeltingSoon, 3) * 0.25)) * 0.7; 
+
+            for(let i=0; i<ATOMS_COUNT; i++) {
+                let p, s;
+                if(state.isMelt) {
+                    let overMelt = temp - def.melt; let meltProg = Math.min(1.0, overMelt / 60.0); let expansion = 1.0 + Math.min(0.6, overMelt * 0.003); 
+                    p = phasePaths[phasePaths.length-1][i].clone(); let targetP = p.clone().multiplyScalar(expansion); p.lerp(targetP, meltProg); 
+                    let residualVib = extremeVib * (1 - meltProg); let driftAmp = 1.2 * meltProg; 
+                    p.x += Math.sin(time * 20 + vibPhaseX[i]) * residualVib + Math.sin(time * 0.5 + vibPhaseX[i]) * driftAmp; p.y += Math.cos(time * 21 + vibPhaseY[i]) * residualVib + Math.cos(time * 0.6 + vibPhaseY[i]) * driftAmp; p.z += Math.sin(time * 22 + vibPhaseZ[i]) * residualVib + Math.sin(time * 0.7 + vibPhaseZ[i]) * driftAmp;
+                    s = phaseScales[phaseScales.length-1][i];
+                } else {
+                    p = new THREE.Vector3().lerpVectors(phasePaths[state.pA][i], phasePaths[state.pB][i], state.prog);
+                    s = phaseScales[state.pA][i] + (phaseScales[state.pB][i] - phaseScales[state.pA][i]) * state.prog;
+                    if (s > 0.01) { p.x += Math.sin(time*20 + vibPhaseX[i]) * extremeVib; p.y += Math.cos(time*21 + vibPhaseY[i]) * extremeVib; p.z += Math.sin(time*22 + vibPhaseZ[i]) * extremeVib; }
+                }
+                currentPositions.push(p); currentScales.push(s);
+                dummy.position.copy(p); dummy.scale.set(s, s, s); dummy.updateMatrix(); atomMesh.setMatrixAt(i, dummy.matrix);
+            }
+
+            if(!state.isMelt) {
+                for(let i=0; i<ATOMS_COUNT; i++) {
+                    if (currentScales[i] > 0.5) {
+                        let p = currentPositions[i];
+                        for(let j=i+1; j<ATOMS_COUNT; j++) {
+                            if(currentScales[j] > 0.5 && p.distanceToSquared(currentPositions[j]) < currentCutoff) {
+                                posArr[lIdx++] = p.x; posArr[lIdx++] = p.y; posArr[lIdx++] = p.z;
+                                posArr[lIdx++] = currentPositions[j].x; posArr[lIdx++] = currentPositions[j].y; posArr[lIdx++] = currentPositions[j].z;
+                            }
+                        }
+                    }
+                }
+            }
+            atomMesh.instanceMatrix.needsUpdate = true; linesMesh.geometry.attributes.position.needsUpdate = true;
+            linesMesh.geometry.setDrawRange(0, lIdx / 3); linesMesh.material.opacity = state.isMelt ? 0 : (0.6 - (isMeltingSoon * 0.3));
+            renderer.render(scene, camera);
+        }
+
+        window.onload = () => { showSection('inicio'); updateGibbs(0); };
+    </script>
+</body>
+</html>
